@@ -1,0 +1,13 @@
+grafana:
+  enabled: true
+  # Force HTTP, set root_url
+  grafana.ini:
+    server:
+      root_url: http://grafana.ticket-api.com
+      serve_from_sub_path: false
+  service:
+    type: ClusterIP
+    port: 80
+  # Optional: admin user/password
+  adminUser: admin
+  adminPassword: admin

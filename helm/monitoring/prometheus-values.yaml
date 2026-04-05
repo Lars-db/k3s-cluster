@@ -1,0 +1,19 @@
+server:
+  persistentVolume:
+    enabled: true
+    storageClass: local-path
+    size: 4Gi
+  service:
+    type: ClusterIP
+
+alertmanager:
+  enabled: false
+
+pushgateway:
+  enabled: false
+
+nodeExporter:
+  enabled: true
+
+kube-state-metrics:
+  enabled: true

@@ -1,6 +1,6 @@
 # k3s Cluster — Ticket Shop
 
-A single-node k3s Kubernetes cluster running a ticket shop application with a PostgreSQL database and a Grafana monitoring stack.
+A single-node k3s Kubernetes cluster running a ticket shop application with a PostgreSQL database, a Grafana monitoring stack, and ArgoCD for GitOps-based deployments.
 
 ## Cluster overview
 
@@ -9,7 +9,7 @@ A single-node k3s Kubernetes cluster running a ticket shop application with a Po
 | **k3s** | Lightweight Kubernetes distribution |
 | **Node** | `the-mothership` (control-plane) |
 | **Ingress controller** | Traefik (bundled with k3s) |
-| **Namespaces** | `default` (app), `monitoring` (observability) |
+| **Namespaces** | `default` (app), `monitoring` (observability), `argocd` (GitOps) |
 
 ---
 
@@ -99,6 +99,26 @@ Two community dashboards are automatically loaded at startup under the **Kuberne
 
 ---
 
+## ArgoCD (`argocd` namespace)
+
+ArgoCD is a GitOps continuous delivery tool. It watches a Git repository and automatically syncs the cluster state to match what is defined there.
+
+Installed via `argo/argo-cd` Helm chart (release name: `argocd`).
+
+- **Accessible at:** `argocd.ticket-api.com` and `http://<node-ip>:32001` (NodePort)
+- **Login:** `admin` / *(see below for password)*
+
+ArgoCD's built-in TLS is disabled (`server.insecure: true`) so Traefik can route plain HTTP traffic to it without conflicts. TLS termination can be handled at the Traefik level if needed.
+
+To retrieve the initial admin password after installation:
+
+```bash
+kubectl get secret argocd-initial-admin-secret -n argocd \
+  -o jsonpath="{.data.password}" | base64 -d && echo
+```
+
+---
+
 ## File structure
 
 ```
@@ -114,12 +134,15 @@ yaml-files/
 │   └── ticket-db-init-configmap.yaml   # SQL schema applied on DB first boot
 ├── ingress/
 │   ├── ingress-ticket-shop.yaml        # Routes ticket-api.com → API service
-│   └── ingress-grafana.yaml            # Routes grafana.ticket-api.com → Grafana
+│   ├── ingress-grafana.yaml            # Routes grafana.ticket-api.com → Grafana
+│   └── ingress-argocd.yaml             # Routes argocd.ticket-api.com → ArgoCD
 ├── grafana-values.yaml                 # Grafana Helm values (datasource, dashboards, NodePort)
 └── helm/
-    └── monitoring/
-        ├── values.yaml                 # Full Grafana Helm chart values
-        └── prometheus-values.yaml      # Prometheus Helm values (storage, exporters)
+    ├── monitoring/
+    │   ├── values.yaml                 # Full Grafana Helm chart values
+    │   └── prometheus-values.yaml      # Prometheus Helm values (storage, exporters)
+    └── argocd/
+        └── values.yaml                 # ArgoCD Helm values (insecure mode, NodePort)
 ```
 
 ---
@@ -137,6 +160,7 @@ yaml-files/
 ```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
 ```
 
@@ -157,7 +181,17 @@ helm install prometheus grafana/grafana \
   -f grafana-values.yaml
 ```
 
-### 3. Deploy the application
+### 3. Deploy ArgoCD
+
+```bash
+kubectl create namespace argocd
+
+helm install argocd argo/argo-cd \
+  -n argocd \
+  -f helm/argocd/values.yaml
+```
+
+### 4. Deploy the application
 
 ```bash
 kubectl apply -f configmaps/
@@ -167,14 +201,16 @@ kubectl apply -f services/
 kubectl apply -f ingress/
 ```
 
-### 4. Access the cluster
+### 5. Access the cluster
 
 Point the following entries to your node's IP in your `/etc/hosts` or DNS:
 
 ```
 <node-ip>  ticket-api.com
 <node-ip>  grafana.ticket-api.com
+<node-ip>  argocd.ticket-api.com
 ```
 
 - **Ticket API:** http://ticket-api.com
 - **Grafana:** http://grafana.ticket-api.com (or http://\<node-ip\>:32000)
+- **ArgoCD:** http://argocd.ticket-api.com (or http://\<node-ip\>:32001)

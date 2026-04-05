@@ -1,0 +1,9 @@
+configs:
+  params:
+    # Disable built-in TLS so Traefik can route HTTP traffic without conflicts
+    server.insecure: true
+
+server:
+  service:
+    type: NodePort
+    nodePortHttp: 32001

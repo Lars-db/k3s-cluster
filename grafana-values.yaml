@@ -1,13 +1,17 @@
-grafana:
+grafana.ini:
+  server:
+    root_url: http://192.168.178.113:32000
+    serve_from_sub_path: false
+
+service:
+  type: NodePort
+  port: 80
+  nodePort: 32000
+
+adminUser: admin
+adminPassword: admin
+
+persistence:
   enabled: true
-  # Force HTTP, set root_url
-  grafana.ini:
-    server:
-      root_url: http://grafana.ticket-api.com
-      serve_from_sub_path: false
-  service:
-    type: ClusterIP
-    port: 80
-  # Optional: admin user/password
-  adminUser: admin
-  adminPassword: admin
+  storageClassName: local-path
+  size: 1Gi
